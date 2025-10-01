@@ -16,12 +16,12 @@ const Order = sequelize.define('Order', {
     type: DataTypes.UUID,
     allowNull: false,
     references: {
-      model: 'Users',
+      model: 'users',
       key: 'id'
     }
   },
   items: {
-    type: DataTypes.TEXT, // Changed from JSONB to TEXT for PostgreSQL compatibility
+    type: DataTypes.TEXT,
     allowNull: false,
     defaultValue: '[]',
     get() {
@@ -76,7 +76,7 @@ const Order = sequelize.define('Order', {
     allowNull: false
   },
   shippingAddress: {
-    type: DataTypes.TEXT, // Changed from JSONB to TEXT for PostgreSQL compatibility
+    type: DataTypes.TEXT,
     allowNull: false,
     get() {
       const rawValue = this.getDataValue('shippingAddress');
@@ -91,7 +91,7 @@ const Order = sequelize.define('Order', {
     }
   },
   billingAddress: {
-    type: DataTypes.TEXT, // Changed from JSONB to TEXT for PostgreSQL compatibility
+    type: DataTypes.TEXT,
     allowNull: false,
     get() {
       const rawValue = this.getDataValue('billingAddress');
@@ -129,7 +129,6 @@ const Order = sequelize.define('Order', {
     { fields: ['paymentStatus'] },
     { fields: ['orderNumber'] }
   ],
-  // Add this for better PostgreSQL performance
   tableName: 'orders'
 });
 
