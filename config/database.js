@@ -1,56 +1,47 @@
 const { Sequelize } = require('sequelize');
-require('dotenv').config();
+
+console.log('🔧 Database Configuration Starting...');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
 
 let sequelize;
 
 if (process.env.NODE_ENV === 'production') {
-  // PostgreSQL for production (Render)
+  // Production - PostgreSQL
+  if (!process.env.DATABASE_URL) {
+    console.error('❌ FATAL: DATABASE_URL is required in production');
+    process.exit(1);
+  }
+  
+  console.log('🔧 Using PostgreSQL in production');
+  
   sequelize = new Sequelize(process.env.DATABASE_URL, {
     dialect: 'postgres',
     dialectOptions: {
-      ssl: process.env.NODE_ENV === 'production' ? {
+      ssl: {
         require: true,
         rejectUnauthorized: false
-      } : false
+      }
     },
-    logging: process.env.NODE_ENV === 'development' ? console.log : false,
+    logging: false,
     pool: {
-      max: 20, // Higher for production
+      max: 20,
       min: 0,
-      acquire: 60000, // Higher timeout for production
+      acquire: 60000,
       idle: 10000
-    },
-    retry: {
-      match: [
-        /ConnectionError/,
-        /SequelizeConnectionError/,
-        /SequelizeConnectionRefusedError/,
-        /SequelizeHostNotFoundError/,
-        /SequelizeHostNotReachableError/,
-        /SequelizeInvalidConnectionError/,
-        /SequelizeConnectionTimedOutError/,
-        /TimeoutError/,
-        /SequelizeDatabaseError/
-      ],
-      max: 3 // Retry 3 times on connection errors
     }
   });
 } else {
-  // SQLite for development
+  // Development - SQLite
+  console.log('🔧 Using SQLite in development');
   sequelize = new Sequelize({
     dialect: 'sqlite',
     storage: './techstore.sqlite',
-    logging: console.log,
-    pool: {
-      max: 5,
-      min: 0,
-      acquire: 30000,
-      idle: 10000
-    }
+    logging: console.log
   });
 }
 
-// Test database connection
+// Test database connection with better error handling
 const testConnection = async () => {
   try {
     await sequelize.authenticate();
@@ -61,20 +52,27 @@ const testConnection = async () => {
       console.log('✅ SQLite database connection established successfully.');
     }
     
-    // Sync all models
-    await sequelize.sync({ force: false });
+    // Sync database without forcing (to avoid table recreation)
+    await sequelize.sync({ 
+      force: false, // Don't drop and recreate tables
+      alter: false  // Don't alter existing tables
+    });
+    
     console.log('✅ Database synced successfully.');
     
   } catch (error) {
-    console.error('❌ Unable to connect to the database:', error.message);
+    console.error('❌ Database sync error:', error.message);
     
-    if (process.env.NODE_ENV === 'production') {
-      console.log('💡 Make sure your DATABASE_URL is correct and PostgreSQL instance is running.');
+    // If it's a relation already exists error, continue anyway
+    if (error.message.includes('already exists')) {
+      console.log('💡 Tables already exist, continuing...');
+      return;
     }
+    
+    process.exit(1);
   }
 };
 
-// Call this when the module is loaded
 testConnection();
 
 module.exports = { sequelize, testConnection };
